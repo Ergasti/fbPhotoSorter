@@ -3,7 +3,7 @@ if (Meteor.isClient) {
   Meteor.startup(function () {
     window.fbAsyncInit = function() {
       FB.init({
-        appId      : '195283507474254',
+        appId      : Meteor.settings.public.APP_ID,
         status     : true,
         xfbml      : true,
         version    : 'v2.5'
