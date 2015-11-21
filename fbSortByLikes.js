@@ -24,28 +24,41 @@ if (Meteor.isClient) {
   Template.body.helpers({
     results: function () {
       return Results.find({}, {sort: {likes: -1}});
+    },
+
+    validToken: function () {
+      return Session.get('pageToken');
     }
   });
 
   Template.body.events({
     'click .fbLoginBtn': function (event, template) {
       FB.login(function (res) {
-      });
+        FB.api(res.authResponse.userID + '/accounts', 'get', {'access_token': res.authResponse.accessToken}, function (response) {
+          _.each(response.data, function(pageInfo) {
+            if (pageInfo.name === "Ceramica Verdi") Session.set('pageToken', pageInfo.access_token);
+          });
+        });
+      } ,{scope: 'public_profile,manage_pages'});
     },
 
     'click .submitBtn': function (event, template) {
       var photoLinks = [];
       var textInputValue = template.find('textarea').value;
-      if (textInputValue) photoLinks = textInputValue.split(/\r\n|\r|\n/g);
+      // if (textInputValue) photoLinks = textInputValue.split(/\r\n|\r|\n/);
+      if (textInputValue) {
+        // photoLinks = textInputValue.replace(/\n/g, '<br />');
+        photoLinks = textInputValue.trim().split(/\n/);
+      }
       _.each(photoLinks, function (link) {
         if (getUrlSegments(link).search) {
           var queryParams = getUrlSegments(link).search.substring(1).split(/&|=/);
           if (queryParams.indexOf('fbid') > -1) {
-            FB.api(queryParams[queryParams.indexOf('fbid') + 1], {fields: 'likes.limit(1).summary(true),picture'}, function (res) {
+            FB.api(queryParams[queryParams.indexOf('fbid') + 1], {fields: 'likes.limit(1).summary(true),picture', 'access_token': Session.get('pageToken')}, function (res) {
               Results.insert({'link': link, 'likes': res.likes.summary.total_count, 'picture': res.picture});
             });
-          } else console.log('Invalid Link');
-        }
+          }
+        } else alert('Please check links');
       });
     },
 
