@@ -1,0 +1,18 @@
+/* CSS declarations go here */
+nav.header {
+  background: #425F9C;
+}
+
+div.headerText {
+  text-align: center;
+  font-size: 30px;
+}
+
+#postLinks {
+  margin-top: 10px;
+}
+
+table {
+  margin-top: 10px;
+  /*border: 1px solid black;*/
+}
