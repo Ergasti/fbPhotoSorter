@@ -30,8 +30,6 @@ if (Meteor.isClient) {
   Template.body.events({
     'click .fbLoginBtn': function (event, template) {
       FB.login(function (res) {
-        console.log(res);
-        Session.set('accessToken', res.authResponse.accessToken);
       });
     },
 
@@ -40,21 +38,13 @@ if (Meteor.isClient) {
       var textInputValue = template.find('textarea').value;
       if (textInputValue) photoLinks = textInputValue.split(/\r\n|\r|\n/g);
       _.each(photoLinks, function (link) {
-        console.log('link', link);
         if (getUrlSegments(link).search) {
-          console.log(getUrlSegments(link).search);
           var queryParams = getUrlSegments(link).search.substring(1).split(/&|=/);
-          console.log('queryParams', queryParams);
           if (queryParams.indexOf('fbid') > -1) {
-            // console.log('TRUEEE');
-            // HTTP.get('http://graph.facebook.com/' + queryParams[queryParams.indexOf('fbid') + 1], {params: {fields: 'likes'}}, function (err, res) {
-            //   console.log('facebook response', res);
-            // });
-            FB.api(queryParams[queryParams.indexOf('fbid') + 1], {fields: 'likes,picture'}, function (res) {
-              console.log(res);
-              Results.insert({'link': link, 'likes': res.likes.data.length, 'picture': res.picture});
+            FB.api(queryParams[queryParams.indexOf('fbid') + 1], {fields: 'likes.limit(1).summary(true),picture'}, function (res) {
+              Results.insert({'link': link, 'likes': res.likes.summary.total_count, 'picture': res.picture});
             });
-          } else console.log('FALSEEE');
+          } else console.log('Invalid Link');
         }
       });
     },
