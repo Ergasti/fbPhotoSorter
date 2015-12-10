@@ -1,3 +1,5 @@
+var likesDict = {};
+var pagingArray = [];
 if (Meteor.isClient) {
 
   Meteor.startup(function () {
@@ -36,7 +38,7 @@ if (Meteor.isClient) {
       FB.login(function (res) {
         FB.api(res.authResponse.userID + '/accounts', 'get', {'access_token': res.authResponse.accessToken}, function (response) {
           _.each(response.data, function(pageInfo) {
-            if (pageInfo.name === "Ceramica Verdi") Session.set('pageToken', pageInfo.access_token);
+            Session.set('pageToken', pageInfo.access_token);
           });
         });
       } ,{scope: 'public_profile,manage_pages'});
@@ -57,6 +59,11 @@ if (Meteor.isClient) {
             FB.api(queryParams[queryParams.indexOf('fbid') + 1], {fields: 'likes.limit(1).summary(true),picture', 'access_token': Session.get('pageToken')}, function (res) {
               Results.insert({'link': link, 'likes': res.likes.summary.total_count, 'picture': res.picture});
             });
+            var fbId = queryParams[queryParams.indexOf('fbid') + 1];
+            FB.api(queryParams[queryParams.indexOf('fbid') + 1], {fields: 'id,likes.limit(1000)', 'access_token': Session.get('pageToken')}, function (res) {
+              likesDict[fbId] = res.likes.data;
+              pagingArray.push(res.likes.paging.next);
+            });
           }
         } else alert('Please check links');
       });
@@ -64,7 +71,45 @@ if (Meteor.isClient) {
 
     'click .clearBtn': function (event, template) {
       template.find('textarea').value = '';
+      likesDict = {};
+      pagingArray = [];
       Meteor.call('removeResults');
+    },
+
+    'click .getInfo': function (event, template) {
+      console.log(likesDict, pagingArray);
+      var batchReq = [];
+      var count = 0;
+      while(count < pagingArray.length) {
+        if (pagingArray.length > 50) {
+          var countLimit = count + 50;  
+        } else {
+          var countLimit = pagingArray.length;
+        }
+        console.log("bigloop", countLimit);
+        while (count < countLimit) {
+          console.log("smallerloop", count, pagingArray[count]);
+          var oneReq = {"method": "GET", "relative_url": pagingArray[count]};
+          batchReq.push(oneReq);
+          count++;
+        }
+        console.log("making api req", batchReq);
+        HTTP.post("https://graph.facebook.com", {params: {"access_token": Session.get('pageToken'), "batch": JSON.stringify(batchReq)}}, function(res) {
+          console.log(res);
+          _.each(res, function (oneReqRes) {
+            var fbId = oneReqRes.id;
+            var oldLikes = likesDict[fbId];
+            var newLikes = oneReqRes.likes.data;
+            console.log("gotRes", oneReqRes);
+            _.each(newLikes, function (onelike) {
+              oldLikes.push(onelike);
+            });
+            likesDict[fbid] = oldLikes;
+            pagingArray.push(oneReqRes.likes.paging.next);
+          });
+        })
+        batchReq = [];
+      }
     }
   })
 }
